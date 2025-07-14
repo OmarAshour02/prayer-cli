@@ -1,4 +1,4 @@
-module github.com/omarashour/prayer-cli
+module github.com/omarashour02/prayer-cli
 
 go 1.24.3
 
