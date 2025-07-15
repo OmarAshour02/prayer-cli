@@ -1,51 +1,133 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
-
 	"github.com/spf13/cobra"
+	"prayer-cli/internal"
 )
 
-
-
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "prayer-cli",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+type Config struct {
+	City string `json:"city"`
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	err := rootCmd.Execute()
+func loadCity() (string, error) {
+	data, err := os.ReadFile("config.json")
 	if err != nil {
+		return "", err
+	}
+	
+	var config map[string]string
+	if err := json.Unmarshal(data, &config); err != nil {
+		return "", err
+	}
+	
+	return config["city"], nil
+}
+
+func modifyCity(filename string, newCity string) error {
+
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	var config Config
+	if err := json.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	config.City = newCity
+
+	jsonData, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	if err := os.WriteFile(filename, jsonData, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+func fetchAndDisplayPrayerTimes(address string) error {
+	
+	lat, lon, display, err := internal.GeocodeAddress(address)
+	if err != nil {
+		return fmt.Errorf("error geocoding: %w", err)
+	}
+	
+	fmt.Println("Location:", display)
+	
+	err = internal.GetPrayerTimes(lat, lon)
+	if err != nil {
+		return fmt.Errorf("error fetching prayer times: %w", err)
+	}
+	
+	return nil
+}
+
+
+var city string
+
+var rootCmd = &cobra.Command{
+	Use:   "prayers",
+	Short: "Get today's prayer times",
+	Long: `Prayer Times CLI - Get Islamic prayer times for any city.
+
+			Examples:
+			prayers --city "Cairo, Egypt"
+			prayers -c "Alexandria"
+			prayers  (uses previously configured city, Default: Makkah, Saudi Arabia)`,
+
+
+	Run: func(cmd *cobra.Command, args []string) {
+		var address string
+		
+		cityFlag, _ := cmd.Flags().GetString("city")
+		
+		if cityFlag != "" {
+			address = cityFlag
+			var configFile = "config.json"
+
+			if err := modifyCity(configFile, address); err != nil {
+				fmt.Printf("Warning: Failed to save city to config: %v\n", err)
+			}
+		} else {
+			savedCity, err := loadCity()
+			if err != nil || savedCity == "" {
+				fmt.Println("No city configured and none provided.")
+				fmt.Println("Usage:")
+				fmt.Println("prayers --city \"Cairo, Egypt\"")
+				fmt.Println("prayers -c \"Alexandria\"")
+				return
+			}
+			address = savedCity
+		}
+		
+		// Fetch and display prayer times
+		if err := fetchAndDisplayPrayerTimes(address); err != nil {
+			fmt.Printf("%v\n", err)
+		}
+	},}
+
+func init() {
+	var err error
+	city, err = loadCity()
+	if err != nil {
+		fmt.Println("Warning: Could not load city from config, using default.")
+		city = ""
+	}
+	rootCmd.Flags().StringVarP(&city, "city", "c", "", "Configure the city for prayer times")
+
+
+}
+
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }
-
-func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.prayer-cli.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-

@@ -1,4 +1,4 @@
-package location
+package internal
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ type NominatimResult struct {
 }
 
 
-func geocodeAddress(address string) (lat string, lon string, display string, err error) {
+func GeocodeAddress(address string) (lat string, lon string, display string, err error) {
 	baseURL := "https://nominatim.openstreetmap.org/search"
 	params := url.Values{}
 	params.Set("q", address)
@@ -34,6 +34,5 @@ func geocodeAddress(address string) (lat string, lon string, display string, err
 	if len(results) == 0 {
 		return "", "", "", fmt.Errorf("no results found")
 	}
-
 	return results[0].Lat, results[0].Lon, results[0].DisplayName, nil
 }
