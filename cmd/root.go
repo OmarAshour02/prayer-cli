@@ -1,52 +1,31 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"github.com/spf13/cobra"
+	"prayer-cli/config"
 	"prayer-cli/internal"
+
+	"github.com/spf13/cobra"
 )
 
-type Config struct {
-	City string `json:"city"`
-}
 
 func loadCity() (string, error) {
-	data, err := os.ReadFile("config.json")
-	if err != nil {
-		return "", err
-	}
+
+	cfg, _:= config.LoadOrInitConfig()
 	
-	var config map[string]string
-	if err := json.Unmarshal(data, &config); err != nil {
-		return "", err
-	}
-	
-	return config["city"], nil
+	return cfg.City, nil
 }
 
-func modifyCity(filename string, newCity string) error {
+func modifyCity(newCity string) error {
 
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
 
-	var config Config
-	if err := json.Unmarshal(data, &config); err != nil {
-		return fmt.Errorf("failed to parse JSON: %w", err)
-	}
-
-	config.City = newCity
-
-	jsonData, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
-	if err := os.WriteFile(filename, jsonData, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+	err := config.UpdateConfig(func(c *config.Config) {
+		c.City = newCity
+	})
+	
+	if err != nil{
+		fmt.Println("City changed successfully to", newCity)
 	}
 
 	return nil
@@ -90,9 +69,7 @@ var rootCmd = &cobra.Command{
 		
 		if cityFlag != "" {
 			address = cityFlag
-			var configFile = "config.json"
-
-			if err := modifyCity(configFile, address); err != nil {
+			if err := modifyCity(address); err != nil {
 				fmt.Printf("Warning: Failed to save city to config: %v\n", err)
 			}
 		} else {
@@ -107,7 +84,6 @@ var rootCmd = &cobra.Command{
 			address = savedCity
 		}
 		
-		// Fetch and display prayer times
 		if err := fetchAndDisplayPrayerTimes(address); err != nil {
 			fmt.Printf("%v\n", err)
 		}
