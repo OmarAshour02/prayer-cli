@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"prayer-cli/config"
 	"time"
 )
 
@@ -46,7 +47,8 @@ func getTimeOfDayArt(timings map[string]string)  []string {
 }
 
 func GetPrayerTimes(lat string, lon string) error {
-	apiURL := fmt.Sprintf("https://api.aladhan.com/v1/timings?latitude=%s&longitude=%s&method=5", lat, lon)
+	cfg, _ := config.LoadOrInitConfig()
+	apiURL := fmt.Sprintf("https://api.aladhan.com/v1/timings?latitude=%s&longitude=%s&method=%s", lat, lon, cfg.Method)
 	
 	resp, err := http.Get(apiURL)
 	if err != nil {
@@ -116,7 +118,21 @@ func getNextPrayerTime(timings map[string]string) (int, int){
 			return hours, minutes
 		}
 	}
-	return 0, 0
+	firstPrayer, _ := time.Parse("15:04", timings["Fajr"])
+
+	timeNow := now.Hour() * 60 + now.Minute()
+
+	fajrTime := firstPrayer.Hour() * 60 + firstPrayer.Minute()
+
+	difference := fajrTime - timeNow
+	if difference < 0 {
+		difference += 24 * 60
+	}
+	
+	hours := int(difference / 60)
+	minutes := int(difference % 60)
+
+	return hours, minutes
 }
 
 func getNextPrayerName(timings map[string]string) string{
@@ -136,7 +152,7 @@ func getNextPrayerName(timings map[string]string) string{
 			return prayer
 		}
 	}
-	return ""
+	return "Fajr"
 
 }
 func highlightNextPrayer(timings map[string]string) {

@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	City   string `json:"city"`
+	Method string `json:"method"`
 }
 
 func getConfigPath() (string, error) {
@@ -28,6 +29,7 @@ func LoadOrInitConfig() (*Config, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		defaultCfg := &Config{
 			City:   "Makkah",
+			Method: "5",
 		}
 
 		if err := SaveConfig(defaultCfg); err != nil {
